@@ -1,0 +1,37 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 50
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    ackermann_steering_controller:
+      type: ackermann_steering_controller/AckermannSteeringController
+
+ackermann_steering_controller:
+  ros__parameters:
+    # Traction joints (right trước, left sau — theo quy ước steering_controllers_library)
+    traction_joints_names:
+      - rear_right_wheel_joint
+      - rear_left_wheel_joint
+
+    # Steering joints (right trước, left sau)
+    steering_joints_names:
+      - front_right_steer_joint
+      - front_left_steer_joint
+
+    # Geometry (từ robot_core.xacro)
+    wheelbase: 0.21
+    traction_track_width: 0.217
+    steering_track_width: 0.217
+    traction_wheels_radius: 0.05
+
+    # Odometry
+    odom_frame_id: odom
+    base_frame_id: base_footprint
+    enable_odom_tf: true
+    open_loop: false        # Dùng actual joint velocity từ Gazebo, không phải commanded
+    position_feedback: false  # Đọc velocity state interface (phù hợp với velocity command joints)
+
+    reference_timeout: 0.5

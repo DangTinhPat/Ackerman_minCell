@@ -1,0 +1,158 @@
+<?xml version="1.0"?>
+<robot name="amr_ackermann" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="inertial.xacro"/>
+
+  <!-- ─── Properties ─── -->
+  <xacro:property name="chassis_mass"     value="2.0"/>
+  <xacro:property name="chassis_length"   value="0.297"/>
+  <xacro:property name="chassis_width"    value="0.158"/>
+  <xacro:property name="chassis_height"   value="0.062"/>
+  <xacro:property name="ground_clearance" value="0.022"/>
+
+  <xacro:property name="wheel_mass"       value="0.15"/>
+  <xacro:property name="wheel_radius"     value="0.05"/>
+  <xacro:property name="wheel_width"      value="0.029"/>
+  <xacro:property name="wheelbase"        value="0.21"/>
+  <xacro:property name="track_width"      value="0.217"/>
+
+  <xacro:property name="steering_limit"    value="0.52"/>
+  <xacro:property name="steering_effort"   value="10.0"/>
+  <xacro:property name="steering_velocity" value="1.0"/>
+  <xacro:property name="steer_link_mass"   value="0.01"/>
+
+  <xacro:property name="chassis_z_offset" value="${ground_clearance + chassis_height/2}"/>
+  <xacro:property name="wheel_z_offset"   value="${wheel_radius - chassis_z_offset}"/>
+
+  <!-- ─── Materials ─── -->
+  <material name="dark_grey">
+    <color rgba="0.2 0.2 0.2 1.0"/>
+  </material>
+  <material name="black">
+    <color rgba="0.1 0.1 0.1 1.0"/>
+  </material>
+
+  <!-- ─── Rear wheel macro ─── -->
+  <xacro:macro name="rear_wheel" params="name y mirrored">
+    <link name="${name}_wheel">
+      <visual>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <xacro:inertial_cylinder mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child  link="${name}_wheel"/>
+      <origin xyz="${-wheelbase/2} ${y} ${wheel_z_offset}" rpy="${-pi/2 + pi*mirrored} 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+
+    <!-- Ma sát bánh dẫn động — cần cao để tạo lực đẩy robot -->
+    <gazebo reference="${name}_wheel">
+      <mu>1.5</mu>
+      <mu2>1.5</mu2>
+      <kp>1e6</kp>
+      <kd>1.0</kd>
+      <minDepth>0.001</minDepth>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- ─── Front wheel macro (steer link + steer joint + wheel link + wheel joint) ─── -->
+  <xacro:macro name="front_wheel" params="name y mirrored">
+    <!-- Steering pivot link (virtual, nhỏ) -->
+    <link name="front_${name}_steer_link">
+      <xacro:inertial_sphere mass="${steer_link_mass}" radius="0.01">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:inertial_sphere>
+    </link>
+
+    <!-- Steering revolute joint -->
+    <joint name="front_${name}_steer_joint" type="revolute">
+      <parent link="base_link"/>
+      <child  link="front_${name}_steer_link"/>
+      <origin xyz="${wheelbase/2} ${y} 0" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-steering_limit}" upper="${steering_limit}"
+             effort="${steering_effort}" velocity="${steering_velocity}"/>
+    </joint>
+
+    <!-- Wheel link -->
+    <link name="front_${name}_wheel">
+      <visual>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <xacro:inertial_cylinder mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:inertial_cylinder>
+    </link>
+
+    <!-- Wheel continuous joint -->
+    <joint name="front_${name}_wheel_joint" type="continuous">
+      <parent link="front_${name}_steer_link"/>
+      <child  link="front_${name}_wheel"/>
+      <origin xyz="0 0 ${wheel_z_offset}" rpy="${-pi/2 + pi*mirrored} 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+
+    <!-- Ma sát bánh trước — đủ để giữ hướng, không quá cao -->
+    <gazebo reference="front_${name}_wheel">
+      <mu>1.0</mu>
+      <mu2>0.5</mu2>
+      <kp>1e6</kp>
+      <kd>1.0</kd>
+      <minDepth>0.001</minDepth>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- ─── Links ─── -->
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+    </collision>
+    <xacro:inertial_box mass="${chassis_mass}" x="${chassis_length}" y="${chassis_width}" z="${chassis_height}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+
+  <!-- ─── Joints ─── -->
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child  link="base_link"/>
+    <origin xyz="0 0 ${chassis_z_offset}" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:rear_wheel  name="rear_left"  y="${track_width/2}"  mirrored="0"/>
+  <xacro:rear_wheel  name="rear_right" y="${-track_width/2}" mirrored="0"/>
+  <xacro:front_wheel name="left"       y="${track_width/2}"  mirrored="0"/>
+  <xacro:front_wheel name="right"      y="${-track_width/2}" mirrored="1"/>
+
+</robot>
