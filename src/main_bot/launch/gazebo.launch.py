@@ -2,7 +2,7 @@ import os
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import IncludeLaunchDescription, TimerAction, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
@@ -12,16 +12,23 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
 
     pkg_path = get_package_share_directory('main_bot')
+    world_file = os.path.join(pkg_path, 'worlds', 'race_way.world')
 
     xacro_file = os.path.join(pkg_path, 'description', 'robot.urdf.xacro')
     robot_description = xacro.process_file(xacro_file).toxml()
+
+    # Fix snap-pthread conflict when running inside VSCode snap environment
+    fix_pthread = SetEnvironmentVariable(
+        'LD_PRELOAD',
+        '/usr/lib/x86_64-linux-gnu/libpthread.so.0'
+    )
 
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([FindPackageShare('ros_gz_sim'), 'launch', 'gz_sim.launch.py'])
         ]),
         launch_arguments={
-            'gz_args': '-r empty.sdf',
+            'gz_args': f'-r {world_file}',
             'on_exit_shutdown': 'True',
         }.items()
     )
@@ -36,15 +43,18 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Spawn at lane 1 start position (right side of top straight, facing +X)
     spawn_node = Node(
         package='ros_gz_sim',
         executable='create',
         arguments=[
+            '-world', 'oval_lane_world',
             '-name', 'dvt_robot',
             '-topic', 'robot_description',
-            '-x', '0',
-            '-y', '0',
-            '-z', '0.1',
+            '-x', '1.0',
+            '-y', '2.267',
+            '-z', '0.15',
+            '-Y', '0.0',
         ],
         output='screen'
     )
@@ -94,12 +104,13 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        fix_pthread,
         gz_sim,
         robot_state_publisher_node,
         bridge_node,
         twist_stamper_node,
         tf_relay_node,
-        TimerAction(period=2.0, actions=[spawn_node]),
-        TimerAction(period=5.0, actions=[joint_state_broadcaster_spawner]),
-        TimerAction(period=7.0, actions=[ackermann_steering_controller_spawner]),
+        TimerAction(period=8.0, actions=[spawn_node]),
+        TimerAction(period=12.0, actions=[joint_state_broadcaster_spawner]),
+        TimerAction(period=14.0, actions=[ackermann_steering_controller_spawner]),
     ])
