@@ -7,4 +7,3 @@
     <xacro:include filename="camera.xacro"/>
     
 </robot>
-
