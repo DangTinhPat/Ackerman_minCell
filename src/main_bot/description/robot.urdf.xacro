@@ -6,13 +6,5 @@
     <xacro:include filename="lidar.xacro"/>
     <xacro:include filename="camera.xacro"/>
 
-    <!-- Single Sensors system plugin — must be loaded exactly once for all sensors -->
-    <gazebo>
-      <plugin filename="gz-sim-sensors-system"
-              name="gz::sim::systems::Sensors">
-        <render_engine>ogre2</render_engine>
-      </plugin>
-    </gazebo>
-
 </robot>
 
