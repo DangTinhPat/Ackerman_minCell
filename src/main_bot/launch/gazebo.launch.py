@@ -16,12 +16,14 @@ def generate_launch_description():
     xacro_file = os.path.join(pkg_path, 'description', 'robot.urdf.xacro')
     robot_description = xacro.process_file(xacro_file).toxml()
 
+    world_file = os.path.join(pkg_path, 'worlds', 'world.sdf')
+
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([FindPackageShare('ros_gz_sim'), 'launch', 'gz_sim.launch.py'])
         ]),
         launch_arguments={
-            'gz_args': '-r empty.sdf',
+            'gz_args': f'-r {world_file}',
             'on_exit_shutdown': 'True',
         }.items()
     )
