@@ -103,6 +103,28 @@ def generate_launch_description():
         output='screen',
     )
 
+    lane_follower_node = Node(
+        package='main_bot',
+        executable='lane_follower_node.py',
+        name='lane_follower_node',
+        parameters=[{'use_sim_time': True}],
+        output='screen',
+    )
+
+    lane_control_node = Node(
+        package='main_bot',
+        executable='lane_control_node.py',
+        name='lane_control_node',
+        parameters=[{
+            'use_sim_time': True,
+            'speed':      0.25,
+            'k':          1.0,
+            'max_steer':  0.52,
+            'timeout':    0.5,
+        }],
+        output='screen',
+    )
+
     return LaunchDescription([
         fix_pthread,
         gz_sim,
@@ -110,7 +132,8 @@ def generate_launch_description():
         bridge_node,
         twist_stamper_node,
         tf_relay_node,
-        TimerAction(period=8.0, actions=[spawn_node]),
+        TimerAction(period=8.0,  actions=[spawn_node]),
         TimerAction(period=12.0, actions=[joint_state_broadcaster_spawner]),
         TimerAction(period=14.0, actions=[ackermann_steering_controller_spawner]),
+        TimerAction(period=16.0, actions=[lane_follower_node, lane_control_node]),
     ])

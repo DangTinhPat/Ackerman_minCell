@@ -18,9 +18,14 @@ from typing import List, Optional, Tuple
 import numpy as np
 import cv2
 
-from .ai_detector  import AIDetector
-from .transformer  import GeometryTransformer
-from .estimator    import LaneEstimator
+try:
+    from .ai_detector  import AIDetector
+    from .transformer  import GeometryTransformer
+    from .estimator    import LaneEstimator
+except ImportError:
+    from ai_detector  import AIDetector
+    from transformer  import GeometryTransformer
+    from estimator    import LaneEstimator
 
 # ── Tham số trích xuất tâm làn đường ──────────────────────────────────────────
 _MIN_LANE_GAP_PX       = 30     # px — khoảng cách pixel tối thiểu giữa 2 vạch để
@@ -269,3 +274,38 @@ class LaneProcessor:
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1
             )
             return 0.0, 0.0, np.zeros(cv_image.shape[:2], dtype=np.uint8), debug_img
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Chạy thẳng từ terminal:
+#   python3 processor.py /path/to/video.mp4
+# ──────────────────────────────────────────────────────────────────────────────
+if __name__ == '__main__':
+    import sys, os
+
+    if len(sys.argv) < 2:
+        print('Cách dùng: python3 processor.py <video_file>')
+        sys.exit(1)
+
+    video_path = sys.argv[1]
+    model_path = os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'EgoLanes_Lite_FP32.onnx')
+
+    proc = LaneProcessor(model_path)
+    cap  = cv2.VideoCapture(video_path)
+
+    if not cap.isOpened():
+        print(f'Không mở được video: {video_path}')
+        sys.exit(1)
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        e_y, e_psi, _, debug = proc.process_frame(frame)
+        print(f'e_y={e_y:+.4f}m  e_psi={math.degrees(e_psi):+.2f}deg')
+        cv2.imshow('Lane Debug', debug)
+        if cv2.waitKey(30) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()

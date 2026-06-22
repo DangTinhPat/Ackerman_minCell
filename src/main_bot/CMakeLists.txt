@@ -19,8 +19,8 @@ install(
 install(
   PROGRAMS
     scripts/odom_tf_relay.py
-    scripts/lane_processor.py
     scripts/lane_follower_node.py
+    scripts/lane_control_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
