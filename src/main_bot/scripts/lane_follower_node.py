@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""
-lane_follower_node.py — ROS 2 wrapper around LaneProcessor.
-
-Subscribes  : /camera/image_raw  (sensor_msgs/msg/Image)
-Publishes   : /status_err        (geometry_msgs/msg/Vector3)  x=e_y [m], y=e_psi [rad], z=valid
-              /processed_image   (sensor_msgs/msg/Image)      annotated BGR frame
-
-Parameters (settable via launch / --ros-args -p):
-  model_path   : str   — path to EgoLanes_Lite_FP32.onnx
-  cam_height   : float — camera height above ground [m]        (default 0.134)
-  cam_pitch    : float — camera pitch angle [rad]              (default 0.0)
-  cam_x_offset : float — camera forward offset from vehicle [m](default 0.1485)
-  image_topic  : str   — input image topic                    (default /camera/image_raw)
-
-Note: cv_bridge is intentionally NOT used to avoid numpy 1.x / 2.x ABI conflicts.
-      Image conversion is done with plain numpy, which works regardless of numpy version.
-"""
 
 import os
 import sys
@@ -31,9 +14,9 @@ from geometry_msgs.msg import Vector3
 
 from ament_index_python.packages import get_package_share_directory
 
-# lane_processor.py sits in the same lib/main_bot/ directory → ensure importable
+# Thêm thư mục scripts vào đường dẫn để import package vision/
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from lane_processor import LaneProcessor, CameraConfig   # noqa: E402
+from vision.processor import LaneProcessor   # noqa: E402
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -105,13 +88,13 @@ class LaneFollowerNode(Node):
         )
 
         # ── Lane processor ────────────────────────────────────────────────
-        cfg = CameraConfig(
-            cam_height=cam_height,
-            cam_pitch=cam_pitch,
-            cam_x_offset=cam_x_offset,
-        )
         try:
-            self._proc = LaneProcessor(model_path, cfg)
+            self._proc = LaneProcessor(
+                model_path=model_path,
+                cam_height=cam_height,
+                cam_pitch=cam_pitch,
+                cam_x_offset=cam_x_offset,
+            )
             self.get_logger().info('LaneProcessor initialised OK')
         except Exception as exc:
             self.get_logger().fatal(f'Failed to load model: {exc}')
@@ -151,15 +134,16 @@ class LaneFollowerNode(Node):
             return
 
         # ── Lane processing ───────────────────────────────────────────────
-        e_y, e_psi, valid, debug_frame = self._proc.process(frame_bgr)
+        # process_frame trả về (e_y, e_psi, mask, debug_img)
+        # valid được xử lý nội bộ bởi LaneEstimator (inertia cache)
+        e_y, e_psi, _, debug_frame = self._proc.process_frame(frame_bgr)
 
         now = self.get_clock().now().to_msg()
 
         # ── Publish /status_err ───────────────────────────────────────────
         err_msg   = Vector3()
-        err_msg.x = float(e_y)               # cross-track error [m]
-        err_msg.y = float(e_psi)             # heading error     [rad]
-        err_msg.z = 1.0 if valid else 0.0   # detection valid flag
+        err_msg.x = float(e_y)    # cross-track error [m]
+        err_msg.y = float(e_psi)  # heading error     [rad]
         self._pub_err.publish(err_msg)
 
         # ── Publish /processed_image ──────────────────────────────────────
@@ -169,7 +153,7 @@ class LaneFollowerNode(Node):
         # ── Throttled log (every 30 frames ≈ 3 s at 10 Hz) ──────────────
         self._frame_count += 1
         if self._frame_count % 30 == 0:
-            if valid:
+            if abs(e_y) > 1e-6 or abs(e_psi) > 1e-6:
                 self.get_logger().info(
                     f'e_y={e_y:+.4f}m  e_psi={math.degrees(e_psi):+.2f}deg'
                 )

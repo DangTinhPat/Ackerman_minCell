@@ -24,6 +24,14 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# Cài đặt toàn bộ package Python vision/ vào cùng thư mục với node scripts
+# để câu lệnh `from vision.processor import LaneProcessor` hoạt động đúng
+# khi node đã được install vào lib/main_bot/
+install(
+  DIRECTORY scripts/vision
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
