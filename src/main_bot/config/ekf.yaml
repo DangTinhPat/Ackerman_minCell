@@ -1,0 +1,57 @@
+ekf_filter_node:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.1
+    two_d_mode: true          # robot di chuyển trên mặt phẳng
+
+    odom_frame:      odom
+    base_link_frame: base_footprint
+    world_frame:     odom
+
+    publish_tf: true           # EKF phát TF odom→base_footprint (thay odom_tf_relay)
+    publish_acceleration: false
+
+    # ── Nguồn 1: Encoder odometry ────────────────────────────────────────────
+    # /ackermann_steering_controller/odometry → nav_msgs/Odometry
+    odom0: /ackermann_steering_controller/odometry
+    #        x      y      z      r      p      yaw    vx     vy     vz     vr     vp     vyaw   ax     ay     az
+    odom0_config: [true,  true,  false,
+                   false, false, true,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_differential: false
+    odom0_relative:     false
+    odom0_queue_size:   10
+
+    # ── Nguồn 2: IMU ─────────────────────────────────────────────────────────
+    # /imu → sensor_msgs/Imu  (100 Hz, từ Gazebo)
+    imu0: /imu
+    #        x      y      z      r      p      yaw    vx     vy     vz     vr     vp     vyaw   ax     ay     az
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  true,  true,  false]
+    imu0_differential: false
+    imu0_relative:     false
+    imu0_queue_size:   10
+    imu0_remove_gravitational_acceleration: true   # loại bỏ g khỏi az
+
+    # ── Process noise (Q matrix diagonal) ────────────────────────────────────
+    process_noise_covariance: [
+      0.05,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.05,   0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.06,   0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.03,   0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.03,   0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.06,   0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.025,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.025,  0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.04,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.01,   0.0,    0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.01,   0.0,    0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.02,   0.0,    0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.01,   0.0,    0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.01,   0.0,
+      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.015]

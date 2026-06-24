@@ -17,6 +17,7 @@ def generate_launch_description():
     robot_description = xacro.process_file(xacro_file).toxml()
     world_file    = os.path.join(pkg_path, 'worlds', 'world.sdf')
     bridge_config = os.path.join(pkg_path, 'config', 'gz_bridge.yaml')
+    ekf_params    = os.path.join(pkg_path, 'config', 'ekf.yaml')
 
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -64,12 +65,14 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Relay /ackermann_steering_controller/tf_odometry → /tf
-    odom_tf_relay = Node(
-        package='main_bot',
-        executable='odom_tf_relay.py',
-        name='odom_tf_relay',
-        parameters=[{'use_sim_time': True}],
+    # EKF: fuse encoder odom + IMU → /odom + TF odom→base_footprint
+    # Thay thế odom_tf_relay — EKF tự phát TF fused
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        parameters=[ekf_params, {'use_sim_time': True}],
+        remappings=[('odometry/filtered', 'odom')],
         output='screen',
     )
 
@@ -96,6 +99,6 @@ def generate_launch_description():
         TimerAction(period=2.0, actions=[spawn_robot]),
         TimerAction(period=5.0, actions=[jsb_spawner]),
         TimerAction(period=7.0, actions=[asc_spawner]),
-        TimerAction(period=9.0, actions=[odom_tf_relay]),
+        TimerAction(period=9.0, actions=[ekf_node]),
         TimerAction(period=9.0, actions=[twist_stamper]),
     ])
