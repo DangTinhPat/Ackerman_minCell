@@ -87,7 +87,7 @@ controller_server:
 
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 56
+      time_steps: 72
       model_dt: 0.05
       batch_size: 2000
       ax_max: 3.0
@@ -102,7 +102,7 @@ controller_server:
       vy_max: 0.0        # Ackermann: không trượt ngang
       wz_max: 1.36       # = vx_max / R_min = 0.5 / 0.367
       iteration_count: 1
-      prune_distance: 1.7
+      prune_distance: 2.5
       transform_tolerance: 0.1
       temperature: 0.3
       gamma: 0.015
@@ -149,7 +149,7 @@ controller_server:
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 14.0
+        cost_weight: 7.0
         max_path_occupancy_ratio: 0.05
         trajectory_point_step: 4
         threshold_to_consider: 0.5
@@ -158,7 +158,7 @@ controller_server:
       PathFollowCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 5.0
+        cost_weight: 8.0
         offset_from_furthest: 5
         threshold_to_consider: 1.4
       PathAngleCritic:
