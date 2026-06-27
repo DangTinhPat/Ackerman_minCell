@@ -15,10 +15,12 @@
 
   <!-- Vision node -->
   <exec_depend>rclpy</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
+  <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
-  <exec_depend>std_msgs</exec_depend>
+  <depend>std_msgs</depend>
+  <depend>gz-transport13</depend>
+  <depend>gz-msgs10</depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python3-numpy</exec_depend>

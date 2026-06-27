@@ -6,6 +6,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 using namespace std::chrono_literals;
@@ -90,6 +91,18 @@ public:
       "/odometry/filtered", 10,
       std::bind(&LaneControlNode::odom_callback, this, std::placeholders::_1));
 
+    // Overtake planner: nhận target_offset và áp vào e_y
+    sub_offset_ = this->create_subscription<std_msgs::msg::Float64>(
+      "/overtake/target_offset", 10,
+      [this](std_msgs::msg::Float64::SharedPtr msg) { target_offset_ = msg->data; });
+
+    // Overtake speed control: giảm tốc khi tiếp cận NPC, tăng khi vượt
+    sub_speed_ = this->create_subscription<std_msgs::msg::Float64>(
+      "/overtake/target_speed", 10,
+      [this](std_msgs::msg::Float64::SharedPtr msg) {
+          if (msg->data > 0.0) speed_ = msg->data;
+      });
+
     pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 
     timer_ = this->create_wall_timer(
@@ -158,7 +171,11 @@ private:
     auto deadband = [](double x, double db) {
       return std::abs(x) < db ? 0.0 : x;
     };
-    double e_y_in   = deadband(e_y_,   db_ey_);
+    // Áp target_offset từ overtake planner trước khi tính dead-band
+    // effective_e_y = e_y - target_offset:
+    //   target_offset = -0.534 → effective = e_y + 0.534 → lái sang làn ngoài
+    //   target_offset = 0.0   → bám lane gốc bình thường
+    double e_y_in   = deadband(e_y_ - target_offset_, db_ey_);
     double e_psi_in = deadband(e_psi_, db_psi_);
 
     // ── Tổng hợp κ: blend κ_odom (EKF, smooth) + κ_vision (predictive) ──────
@@ -222,12 +239,15 @@ private:
   double       angular_z_smooth_{0.0};
   rclcpp::Time last_err_time_;
   bool         has_received_{false};
+  double       target_offset_{0.0};  // từ overtake_node, default 0 (không dịch)
 
   // ── ROS interfaces ───────────────────────────────────────────────────────
-  rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr sub_;
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr     sub_odom_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr      pub_;
-  rclcpp::TimerBase::SharedPtr                                  timer_;
+  rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr   sub_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr       sub_odom_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr        sub_offset_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr        sub_speed_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr        pub_;
+  rclcpp::TimerBase::SharedPtr                                    timer_;
 };
 
 int main(int argc, char * argv[])

@@ -436,7 +436,8 @@ class LaneProcessor:
         try:
             # Lớp 0 + 1: centroids trong model space
             (pts_row, pts_cx, pts_q,
-             combined_relu, orig_h, orig_w, H_m, W_m) = self._extract_centroids(cv_image)
+             combined_relu,
+             orig_h, orig_w, H_m, W_m) = self._extract_centroids(cv_image)
 
             # Lớp 2: RANSAC fit
             coeffs, inliers = self._ransac_polyfit(pts_row, pts_cx, pts_q)

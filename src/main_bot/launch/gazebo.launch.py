@@ -113,6 +113,17 @@ def generate_launch_description():
         output='screen',
     )
 
+    overtake_vision_node = Node(
+        package='main_bot',
+        executable='overtake_vision_node.py',
+        name='overtake_vision_node',
+        parameters=[{
+            'use_sim_time':  True,
+            'publish_debug': True,
+        }],
+        output='screen',
+    )
+
     lane_control_node = Node(
         package='main_bot',
         executable='lane_control_node',
@@ -127,6 +138,65 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Overtake pipeline (Layer 2–7)
+    # Tunable params:
+    #   front_detect_range: khoảng cách tối đa phát hiện NPC phía trước (m)
+    #   gap_time_threshold: ngưỡng thời gian kịch bản vượt (s)
+    #   overtake_offset:    độ dịch ngang khi vượt (-0.534m = sang làn ngoài)
+    #   overtake_hold_time: thời gian tối thiểu ở trong OVERTAKE (s)
+    overtake_node = Node(
+        package='main_bot',
+        executable='overtake_node',
+        name='overtake_node',
+        parameters=[{
+            'use_sim_time':        True,
+            'front_detect_range':  0.1,   # khoảng cách bắt đầu giảm tốc khi thấy NPC
+            'front_safe_min':      0.35,
+            'front_sector_deg':   30.0,
+            'adjacent_clear_min':  0.30,   # outer lane NPC edge thực tế cách ~0.44m, margin rộng hơn
+            'npc_speed':           0.25,
+            'gap_time_threshold':  8.0,   # luôn trigger khi NPC trong tầm (cũ: 4.0)
+            'prepare_hold_time':   1.0,
+            'overtake_hold_time':  6.0,
+            'return_tol':          0.04,
+            'overtake_offset':    -0.534,
+            'offset_rate_limit':   0.25,
+            'abort_front_dist':       0.10,   # chỉ abort khi sắp va chạm thật sự
+            'imu_ay_limit':           5.0,   # curve(0.44) + lane-change steer(2.73) = 3.17 m/s²
+            # Same-lane filter: track_width/2 + margin = 0.108 + 0.04 = 0.15m
+            # Loại bỏ NPC làn kế (cách 0.534m) khỏi speed control
+            'same_lane_half_width':   0.15,
+            'normal_speed':        1.0,    # m/s — tốc độ bình thường
+            'follow_speed':        0.40,   # m/s — bám sau NPC (0.35–5m)
+            'creep_speed':         0.15,   # m/s — tách ra khi quá gần (<0.35m)
+        }],
+        output='screen',
+    )
+
+    # Lane geometry: road_top width=1.068m (Y=2.0→3.068), centre divider at Y=2.534
+    #   Inner (left)  lane centre: lane_y=2.267  L_total≈38.24m  spacing≈9.56m
+    #   Outer (right) lane centre: lane_y=2.801  L_total≈41.60m  spacing≈10.40m
+    # Robot spawn: inner lane at arc≈7.0 → all NPC arcs keep ≥1.5m clearance.
+    def npc(n, lane_y, arc):
+        return Node(
+            package='main_bot',
+            executable='npc_driver_node',
+            name=f'npc_{n}_driver',
+            parameters=[{
+                'use_sim_time': True,
+                'npc_name': f'npc_{n}',
+                'lane_y': lane_y,
+                'initial_arc': arc,
+            }],
+            output='screen',
+        )
+
+    npc_nodes = [
+        # 1 NPC duy nhất: cùng làn với robot (inner lane y=2.267)
+        # Robot spawn tại arc≈7.0 (X=1.0) → NPC tại arc=9.5 (X=3.5) cách 2.5m phía trước
+        npc(1, 2.267, 9.5),
+    ]
+
     return LaunchDescription([
         fix_pthread,
         gz_sim,
@@ -137,5 +207,7 @@ def generate_launch_description():
         TimerAction(period=12.0, actions=[joint_state_broadcaster_spawner]),
         TimerAction(period=14.0, actions=[ackermann_steering_controller_spawner]),
         TimerAction(period=15.0, actions=[ekf_node]),
-        TimerAction(period=16.0, actions=[lane_follower_node, lane_control_node]),
+        TimerAction(period=16.0, actions=[lane_follower_node, lane_control_node,
+                                          overtake_node, overtake_vision_node]),
+        TimerAction(period=16.0, actions=npc_nodes),
     ])
