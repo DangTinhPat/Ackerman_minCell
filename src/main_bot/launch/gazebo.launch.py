@@ -157,7 +157,7 @@ def generate_launch_description():
             'use_sim_time':        True,
             'front_detect_range':  1.0,    # khoảng cách phát hiện NPC (m); BUG FIX: was 0.1 → front_ok impossible
             'front_safe_min':      0.35,
-            'front_sector_deg':   23.0,    # arc tại 1m = 2×23°×π/180×1.0 = 0.80m ≈ 1.5× lane_width(0.534m)
+            'front_sector_deg':   21.5,    # arc tại 1m = 2×23°×π/180×1.0 = 0.80m ≈ 1.5× lane_width(0.534m)
             'adjacent_clear_min':  0.30,
             'npc_speed':           0.25,
             'gap_time_threshold':  8.0,
@@ -197,9 +197,12 @@ def generate_launch_description():
         )
 
     npc_nodes = [
-        # 1 NPC duy nhất: cùng làn với robot (inner lane y=2.267)
-        # Robot spawn tại arc≈7.0 (X=1.0) → NPC tại arc=9.5 (X=3.5) cách 2.5m phía trước
+        # Cùng làn với robot (inner lane y=2.267)
+        # Robot spawn tại arc≈7.0 (X=1.0)
+        # NPC 1: arc=9.5  → cách robot ~2.5m phía trước
+        # NPC 2: arc=20.0 → cách NPC 1 ~10.5m (robot vượt NPC 1 xong mới gặp NPC 2)
         npc(1, 2.267, 9.5),
+        npc(2, 2.267, 20.0),
     ]
 
     return LaunchDescription([
